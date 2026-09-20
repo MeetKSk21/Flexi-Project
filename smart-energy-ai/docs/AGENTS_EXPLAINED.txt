@@ -1,0 +1,210 @@
+================================================================================
+                    SMARTENERGY AI — THE 6 AGENTS EXPLAINED
+================================================================================
+Target Audience: Viva Preparation & Deep Understanding of Multi-Agent Behavior.
+
+--------------------------------------------------------------------------------
+AGENT 1: ENERGY MONITORING & ANALYSIS AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The historical data analytics specialist responsible for evaluating past energy usage.
+2. Why does it exist?
+   Before you can optimize or forecast energy, you must accurately understand current
+   and historical consumption patterns.
+3. What does it receive?
+   A validated Pandas DataFrame with chronological timestamps and hourly kWh readings.
+4. What does it do?
+   Computes total energy, daily average, hourly diurnal curves, peak hour, base trough,
+   weekday vs weekend variances, and overall trend slopes.
+5. What tools does it use?
+   `services/energy_calculator.py` (NumPy & Pandas aggregations) + `services/llm_service.py`.
+6. What does it output?
+   A structured dictionary containing exact metrics and an executive natural language summary.
+7. How does it communicate?
+   Returns its dictionary to Agent 6 (Coordinator), which shares the baseline metrics with
+   Cost and Appliance agents.
+8. Real-life analogy:
+   Like an accountant who audits your bank statements to tell you where your money went.
+9. Technical explanation:
+   Performs descriptive statistical profiling, linear polynomial regression for slope/trend,
+   and 24-hour diurnal grouping.
+10. One-line viva answer:
+    "Agent 1 deterministically calculates historical consumption metrics, peak demand windows,
+     and diurnal usage profiles."
+
+--------------------------------------------------------------------------------
+AGENT 2: FORECASTING AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The predictive machine learning specialist that models upcoming electricity demand.
+2. Why does it exist?
+   To alert consumers and utility planners ahead of time when peak demand will occur.
+3. What does it receive?
+   Historical time-series sequence and a forecast horizon (default: 24 hours).
+4. What does it do?
+   Engineers autoregressive features (lags and rolling averages), fits a Random Forest Regressor,
+   measures validation error (MAE, RMSE, MAPE), and predicts future 24h demand.
+5. What tools does it use?
+   `services/forecasting.py` (`scikit-learn` Random Forest) + `services/llm_service.py`.
+6. What does it output?
+   Predicted hourly sequence, peak forecast time, model accuracy scores, and LLM advice.
+7. How does it communicate?
+   Provides anticipated peak hours to Agent 6 so load-shifting advice can be aligned with
+   expected grid stress.
+8. Real-life analogy:
+   Like a meteorologist who forecasts tomorrow's weather so you know if you need an umbrella.
+9. Technical explanation:
+   Uses supervised ensemble learning on lagged autoregressive vectors (t-1, t-2, t-24)
+   with chronological holdout validation.
+10. One-line viva answer:
+    "Agent 2 employs a Random Forest Regressor on autoregressive lag features to project 24-hour
+     demand and validate accuracy via MAE and RMSE."
+
+--------------------------------------------------------------------------------
+AGENT 3: APPLIANCE OPTIMIZATION AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The appliance disaggregation and load-shifting scheduler.
+2. Why does it exist?
+   Consumers need actionable advice on specific devices (e.g. when to run washing machines or ACs).
+3. What does it receive?
+   Appliance catalog (wattage, usage hours, flexibility) and active electricity tariff tiers.
+4. What does it do?
+   Identifies high-power loads, separates flexible from inflexible devices, and schedules
+   heavy flexible loads into off-peak hours.
+5. What tools does it use?
+   `services/optimization.py` + `services/llm_service.py`.
+6. What does it output?
+   Device-level breakdown, recommended operating schedules, and potential kWh saved.
+7. How does it communicate?
+   Feeds appliance cost and savings potential into Agent 4 (Cost Agent) and Agent 6 (Coordinator).
+8. Real-life analogy:
+   Like an efficiency coach who schedules your workouts and chores at the best times of day.
+9. Technical explanation:
+   Applies heuristic load-shifting algorithms, mapping deferrable energy requirements
+   to off-peak tariff periods.
+10. One-line viva answer:
+    "Agent 3 classifies appliances by flexibility and reschedules deferrable loads away from peak
+     tariff windows to reduce peak coincident demand."
+
+--------------------------------------------------------------------------------
+AGENT 4: COST OPTIMIZATION AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The financial and tariff calculation specialist.
+2. Why does it exist?
+   Consumers ultimately care about their monetary electricity bill and ROI.
+3. What does it receive?
+   Consumption data, appliance load profiles, and `TariffConfig` (base, peak, off-peak rates).
+4. What does it do?
+   Computes Time-of-Day (ToD) electricity costs, compares Current vs Optimized bills,
+   and calculates net savings in INR (₹) and percentage improvement.
+5. What tools does it use?
+   `services/optimization.py` + `services/llm_service.py`.
+6. What does it output?
+   Detailed cost metrics, projected savings in Rupees, and percentage bill reduction.
+7. How does it communicate?
+   Supplies financial quantification to Agent 6 for inclusion in the final report.
+8. Real-life analogy:
+   Like a tax consultant who finds legal deductions to lower your tax bill.
+9. Technical explanation:
+   Computes piece-wise Time-of-Day tariff integrals and prorated fixed charges to evaluate
+   cost deltas between unmanaged and load-shifted regimes.
+10. One-line viva answer:
+    "Agent 4 models Time-of-Day and tiered tariffs to quantify projected monthly financial savings
+     from load optimization."
+
+--------------------------------------------------------------------------------
+AGENT 5: ANOMALY & ENERGY SAFETY AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The behavioral watchdog and energy waste auditing specialist.
+2. Why does it exist?
+   To detect unexpected consumption leaks, continuous equipment operation, or data anomalies.
+3. What does it receive?
+   Historical time-series with hour-of-day features.
+4. What does it do?
+   Calculates hour-specific diurnal Z-scores, fits an Isolation Forest, identifies outliers,
+   assigns severity, and generates safe troubleshooting guidance.
+5. What tools does it use?
+   `services/anomaly_detection.py` (Isolation Forest & Z-Score) + `services/llm_service.py`.
+6. What does it output?
+   List of flagged anomalies (timestamp, measured value, normal range, explanation, severity).
+7. How does it communicate?
+   Warns Agent 6 so unusual spikes are considered when formulating the overall energy plan.
+8. Real-life analogy:
+   Like a home smoke detector that beeps when something unusual is happening in the kitchen.
+9. Technical explanation:
+   Combines parametric diurnal Z-score thresholding with non-parametric Isolation Forest
+   ensemble trees to isolate multivariate behavioral outliers.
+10. One-line viva answer:
+    "Agent 5 detects unusual consumption surges using a hybrid diurnal Z-score and Isolation Forest
+     approach, providing non-invasive safety advisories."
+
+--------------------------------------------------------------------------------
+AGENT 6: ENERGY ADVISOR / COORDINATOR AGENT
+--------------------------------------------------------------------------------
+1. What is the agent?
+   The central orchestrator and strategic synthesizer of the entire multi-agent system.
+2. Why does it exist?
+   Without a coordinator, the 5 specialist agents would produce isolated numbers that
+   confuse the user. The coordinator harmonizes the entire pipeline into one coherent strategy.
+3. What does it receive?
+   User queries, dataset references, and the structured outputs from all 5 specialized agents.
+4. What does it do?
+   Routes user intents, executes the pipeline, resolves conflicting recommendations,
+   and formats the comprehensive Final Energy Management Report.
+5. What tools does it use?
+   Agent orchestrator pipeline + `services/llm_service.py` synthesis prompts.
+6. What does it output?
+   Unified system state, chatbot conversational responses, and downloadable audit reports.
+7. How does it communicate?
+   Acts as the central communication hub; calls all other agents and collates their responses.
+8. Real-life analogy:
+   Like the managing director of a hospital who consults cardiologists, radiologists, and
+   surgeons before giving the patient a final diagnosis.
+9. Technical explanation:
+   Implements hierarchical multi-agent orchestration with dynamic query routing, structured
+   state merging, and grounded prompt synthesis.
+10. One-line viva answer:
+    "Agent 6 orchestrates the multi-agent pipeline, routes user inquiries, resolves conflicting
+     recommendations, and synthesizes the unified strategic audit report."
+
+--------------------------------------------------------------------------------
+EXPLAIN ALL 6 AGENTS IN 30 SECONDS (SPEED SUMMARY)
+--------------------------------------------------------------------------------
+"Our system has six specialized agents. Agent 1 monitors past consumption to find peak
+and average usage. Agent 2 uses Random Forest machine learning to predict tomorrow's
+demand. Agent 3 reschedules flexible appliances like washing machines and heaters.
+Agent 4 models electricity tariffs to calculate monthly cost savings in Rupees.
+Agent 5 uses Isolation Forest to detect abnormal spikes and power leaks. Finally,
+Agent 6 coordinates the other five agents, resolves conflicts, and gives the user a
+unified energy optimization plan."
+
+--------------------------------------------------------------------------------
+EXPLAIN ALL 6 AGENTS IN 2 MINUTES (DEEP SUMMARY FOR VIVA)
+--------------------------------------------------------------------------------
+"In SmartEnergy AI, we avoided the monolithic approach of using a single LLM to do
+everything. Instead, we designed a hierarchical 6-agent architecture where deterministic
+computation, machine learning, and natural language reasoning are cleanly decoupled.
+
+Agent 1, the Monitoring Agent, processes smart-meter time series to deterministically
+extract statistical baselines, 24-hour diurnal curves, and weekday versus weekend variances.
+
+Agent 2, the Forecasting Agent, applies supervised Random Forest regression using autoregressive
+lag features—such as t-1, t-2, and t-24—to project upcoming 24-hour demand and validates
+its own accuracy using Mean Absolute Error and RMSE.
+
+Agent 3, the Appliance Optimization Agent, disaggregates domestic loads into flexible and
+critical categories, constructing optimized operating schedules that avoid high-tariff periods.
+
+Agent 4, the Cost Optimization Agent, applies Time-of-Day and slab electricity tariffs to
+mathematically demonstrate the bill reduction between unmanaged and load-shifted regimes.
+
+Agent 5, the Anomaly & Safety Agent, utilizes a hybrid approach combining hour-specific
+Z-score bounds with scikit-learn's Isolation Forest to flag unusual late-night surges and
+consumption anomalies, offering safe, non-invasive advice.
+
+Finally, Agent 6, the Coordinator Agent, directs this workflow, manages conversational intent
+routing in our assistant chat tab, and compiles the final comprehensive audit report."
+================================================================================

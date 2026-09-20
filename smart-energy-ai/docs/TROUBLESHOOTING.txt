@@ -1,0 +1,119 @@
+================================================================================
+                    SMARTENERGY AI — TROUBLESHOOTING GUIDE
+================================================================================
+Target Audience: Beginners facing Windows or Python runtime issues.
+
+Format for each issue:
+- PROBLEM: Description of symptom or error
+- WHY IT HAPPENS: Underlying root cause
+- HOW TO FIX IT: Exact step-by-step resolution
+
+--------------------------------------------------------------------------------
+ISSUE 1: PYTHON IS NOT RECOGNIZED OR NOT FOUND
+--------------------------------------------------------------------------------
+- PROBLEM: 'python' is not recognized as an internal or external command, operable program or batch file.
+- WHY IT HAPPENS: Python was installed without checking the "Add Python to PATH" box.
+- HOW TO FIX IT:
+  1. Download Python from https://www.python.org/downloads/
+  2. Run the installer.
+  3. IMPORTANT: On the very first screen, check the box:
+     ☑ "Add python.exe to PATH"
+  4. Complete installation, close all open Command Prompt windows, and reopen.
+
+--------------------------------------------------------------------------------
+ISSUE 2: WINDOWS POWERSHELL SCRIPT EXECUTION RESTRICTED
+--------------------------------------------------------------------------------
+- PROBLEM: File cannot be loaded because running scripts is disabled on this system (Execution_Policies error).
+- WHY IT HAPPENS: Windows PowerShell has a default security restriction preventing unauthorized `.ps1` scripts.
+- HOW TO FIX IT:
+  Method A (Easiest):
+  Use our provided `.bat` launchers (`START_PROJECT.bat` or `SETUP_PROJECT.bat`)!
+  Windows Batch files are native and NEVER blocked by PowerShell execution policies.
+  Method B (If using PowerShell):
+  Run PowerShell as Administrator and execute:
+  `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
+  Type 'Y' and press Enter.
+
+--------------------------------------------------------------------------------
+ISSUE 3: PORT 7860 ALREADY IN USE
+--------------------------------------------------------------------------------
+- PROBLEM: OSError: Port 7860 is in use. Try a different port.
+- WHY IT HAPPENS: A previous instance of Gradio or another web app is still running in the background.
+- HOW TO FIX IT:
+  Method A: Double-click `STOP_PROJECT.bat`. It will locate and kill whatever process is holding port 7860.
+  Method B: Change the port in your `.env` file:
+  `GRADIO_SERVER_PORT=7861`
+
+--------------------------------------------------------------------------------
+ISSUE 4: GRADIO DASHBOARD NOT OPENING IN BROWSER
+--------------------------------------------------------------------------------
+- PROBLEM: The console says "Running on local URL", but the browser does not open automatically.
+- WHY IT HAPPENS: Default Windows browser association is missing or blocked by firewall.
+- HOW TO FIX IT:
+  Open your web browser (Chrome, Edge, Firefox) manually and type:
+  `http://127.0.0.1:7860`
+  Press Enter. The dashboard will load immediately.
+
+--------------------------------------------------------------------------------
+ISSUE 5: API KEY MISSING OR INVALID
+--------------------------------------------------------------------------------
+- PROBLEM: You don't have an API key or see an authentication warning.
+- WHY IT HAPPENS: No `.env` file exists or `GROQ_API_KEY` is still set to placeholder text.
+- HOW TO FIX IT:
+  1. No panic! SmartEnergy AI has built-in **Offline Fallback Mode**. The entire dashboard,
+     machine learning models, charts, and calculations work 100% without an API key!
+  2. To activate live cloud AI:
+     - Get a free key at https://console.groq.com/keys
+     - Open `.env` in Notepad.
+     - Set: `GROQ_API_KEY=gsk_your_real_key_here`
+     - Save and restart the app via `START_PROJECT.bat`.
+
+--------------------------------------------------------------------------------
+ISSUE 6: API RATE LIMIT OR QUOTA EXCEEDED
+--------------------------------------------------------------------------------
+- PROBLEM: Warning in logs: `LLM API call failed: RateLimitError 429`.
+- WHY IT HAPPENS: You sent too many queries to the free tier of Groq/OpenAI in a short time.
+- HOW TO FIX IT:
+  1. Our `services/llm_service.py` automatically catches rate limit errors and switches
+     to deterministic offline fallback mode so the application never crashes.
+  2. Wait 60 seconds before sending another chat message in Tab 9.
+
+--------------------------------------------------------------------------------
+ISSUE 7: CSV UPLOAD ERROR: MISSING REQUIRED COLUMNS
+--------------------------------------------------------------------------------
+- PROBLEM: Validation Error: Missing required column(s): ['timestamp', 'energy_kwh'].
+- WHY IT HAPPENS: Your uploaded CSV has different column headers (e.g. 'Date', 'Time', 'Units').
+- HOW TO FIX IT:
+  Open your CSV in Excel or Notepad and ensure the top line has these exact column names:
+  `timestamp,energy_kwh`
+  Example row:
+  `2026-08-01 00:00:00,1.25`
+
+--------------------------------------------------------------------------------
+ISSUE 8: CHARTS ARE BLANK OR NOT APPEARING
+--------------------------------------------------------------------------------
+- PROBLEM: Graph areas are empty after loading data.
+- WHY IT HAPPENS: The analysis pipeline has not yet been executed for the active dataset.
+- HOW TO FIX IT:
+  Click the prominent blue button at the top:
+  `⚡ Run Multi-Agent Analysis`
+  All 6 Plotly charts will populate within 2 seconds.
+
+--------------------------------------------------------------------------------
+ISSUE 9: PIP INSTALLATION FAILS / NETWORK TIMEOUT
+--------------------------------------------------------------------------------
+- PROBLEM: `pip install -r requirements.txt` hangs or throws SSLError / ReadTimeoutError.
+- WHY IT HAPPENS: Slow internet connection or college proxy / VPN blocking PyPI.
+- HOW TO FIX IT:
+  Run pip with an increased timeout or direct mirror:
+  `pip install -r requirements.txt --default-timeout=100`
+
+--------------------------------------------------------------------------------
+ISSUE 10: VIRTUAL ENVIRONMENT ACTIVATION ERROR
+--------------------------------------------------------------------------------
+- PROBLEM: `activate : File ... cannot be loaded`.
+- WHY IT HAPPENS: PowerShell execution policy blocked `activate.ps1`.
+- HOW TO FIX IT:
+  Simply use `START_PROJECT.bat` or run the batch activation in normal Command Prompt:
+  `venv\Scripts\activate.bat`
+================================================================================

@@ -1,0 +1,99 @@
+================================================================================
+               SMARTENERGY AI — WINDOWS LAUNCHER USER GUIDE
+================================================================================
+Target Audience: Complete Beginners running this project on Windows.
+
+--------------------------------------------------------------------------------
+1. OVERVIEW: RUNNING WITHOUT TYPING COMMANDS
+--------------------------------------------------------------------------------
+You do NOT need to open Windows PowerShell or remember complex command-line syntax.
+We have created 3 automated Windows Batch scripts that do everything for you:
+
+1. `SETUP_PROJECT.bat`  -> Run this ONCE when you first download the project.
+2. `START_PROJECT.bat`  -> Double-click this to launch the application.
+3. `STOP_PROJECT.bat`   -> Double-click this when you want to stop the application.
+
+--------------------------------------------------------------------------------
+2. WHAT IS A `.bat` FILE?
+--------------------------------------------------------------------------------
+A `.bat` (Batch) file is a simple script file recognized natively by Microsoft Windows.
+When you double-click it, Windows opens a command window and automatically executes
+the commands written inside it line-by-line, saving you from having to type them manually.
+
+--------------------------------------------------------------------------------
+3. WHAT EACH SCRIPT DOES UNDER THE HOOD
+--------------------------------------------------------------------------------
+
+A. `SETUP_PROJECT.bat` (The Installer Wizard):
+   - Step 1: Checks if Python 3 is installed on your Windows machine. If missing,
+     it displays a friendly error and tells you where to download it.
+   - Step 2: Checks if an isolated virtual environment (`venv`) exists. If not,
+     it runs `python -m venv venv` to create one.
+   - Step 3: Activates `venv` and runs `pip install -r requirements.txt` to install
+     all necessary libraries (Gradio, Pandas, Scikit-Learn, Plotly, etc.).
+   - Step 4: Checks if a `.env` file exists. If missing, it creates a copy from `.env.example`.
+   - Step 5: Checks if the smart-meter dataset exists. If missing, it runs `data/generate_data.py`.
+   - Step 6: Runs the automated `pytest` test suite to verify all 15 functions pass.
+   - Step 7: Tells you: "Setup completed successfully! You can now run START_PROJECT.bat".
+
+B. `START_PROJECT.bat` (The Daily Launcher):
+   - Step 1: Detects its current folder location automatically using `%~dp0` (meaning
+     the project works even if you move the folder to your Desktop or a USB drive!).
+   - Step 2: Uses the Python executable inside your isolated `venv`.
+   - Step 3: Verifies that baseline dataset files exist.
+   - Step 4: Launches the application web server on port 7860.
+   - Step 5: Automatically launches your default web browser (Edge, Chrome, or Firefox)
+     and navigates directly to `http://127.0.0.1:7860`.
+   - Step 6: Keeps the console window open so you can monitor live agent logs.
+
+C. `STOP_PROJECT.bat` (The Safe Shutdown Utility):
+   - Step 1: Scans Windows active network sockets using `netstat` to find the exact
+     process ID (PID) listening on port 7860.
+   - Step 2: Gracefully terminates ONLY the SmartEnergy AI server process.
+   - Step 3: Does NOT terminate other Python processes running on your computer!
+
+D. `RUN_DEMO.bat` (The College Demo Shortcut):
+   - A streamlined one-click launcher tailored specifically for college presentations.
+     It generates fresh demo data, starts the web server, and launches your browser.
+
+--------------------------------------------------------------------------------
+4. WHAT HAPPENS WHEN YOU DOUBLE-CLICK `START_PROJECT.bat`?
+--------------------------------------------------------------------------------
+1. A black command window titled "SmartEnergy AI - Live Dashboard Launcher" opens.
+2. You will see:
+   `[OK] Using isolated virtual environment (venv).`
+   `[*] Initializing 6-Agent AI Architecture and Gradio Interface...`
+   `[*] Starting web server on http://127.0.0.1:7860 ...`
+3. Within 3 to 5 seconds, your default internet browser pops up.
+4. The SmartEnergy AI Dashboard appears with its 10 interactive tabs!
+5. IMPORTANT: DO NOT close the black command window while using the dashboard.
+   Minimizing it is fine, but closing it will shut down the server.
+
+--------------------------------------------------------------------------------
+5. WHAT IS A VIRTUAL ENVIRONMENT (`venv`) AND WHY DO WE NEED ONE?
+--------------------------------------------------------------------------------
+Imagine you share an art studio with other artists. If everyone dumps their paints
+and brushes into one big box, supplies get mixed up, lost, or ruined. A virtual
+environment is like having your own personal, locked toolbox containing only the
+exact brushes and paints needed for THIS specific project.
+It guarantees that installing packages for this project will never break other
+programs or university assignments on your laptop.
+
+--------------------------------------------------------------------------------
+6. WHY IS THE API KEY STORED SEPARATELY IN A `.env` FILE?
+--------------------------------------------------------------------------------
+Security! If your secret API key was written directly into `app.py` and you emailed
+your project zip file or uploaded it to GitHub, anyone could steal your key.
+Storing it in `.env` keeps your credentials private.
+
+--------------------------------------------------------------------------------
+7. TROUBLESHOOTING LAUNCHER ERRORS
+--------------------------------------------------------------------------------
+- Error: "Python was not found on your system PATH!"
+  -> Fix: Reinstall Python from python.org and check "Add python.exe to PATH".
+- Error: "Port 7860 is already in use"
+  -> Fix: Double-click `STOP_PROJECT.bat` to clear the stalled process.
+- Error: Dashboard says "Offline Fallback Mode"
+  -> Fix: This is completely normal! The app works offline. If you want cloud LLM,
+     open `.env` in Notepad and add your free Groq API key.
+================================================================================

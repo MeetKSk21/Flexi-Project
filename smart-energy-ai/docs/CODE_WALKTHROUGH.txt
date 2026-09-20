@@ -1,0 +1,163 @@
+================================================================================
+                    SMARTENERGY AI — CODE WALKTHROUGH
+================================================================================
+Target Audience: Code Review, Viva Technical Defense, and Understanding Code Flow.
+
+This document walks through every critical file in the repository, explaining:
+- INPUT
+- PROCESSING
+- OUTPUT
+for all major modules and functions.
+
+--------------------------------------------------------------------------------
+1. `app.py` (Main Application Entry Point & Gradio UI)
+--------------------------------------------------------------------------------
+- Purpose: Builds the 10-tab web dashboard, connects user clicks to Python functions,
+  and manages application state in `GLOBAL_DATA`.
+- Key Functions:
+  - `load_initial_datasets()`:
+    - INPUT: File paths to `data/energy_consumption.csv` and `data/appliances.csv`.
+    - PROCESSING: Checks existence, generates demo data if missing, validates dataframes,
+      and executes initial multi-agent run.
+    - OUTPUT: Populates `GLOBAL_DATA` memory dictionary.
+  - `run_analysis_pipeline(base_rate, peak_rate, off_peak_rate, fixed_charge)`:
+    - INPUT: User tariff slider numbers.
+    - PROCESSING: Builds a `TariffConfig`, passes data to `coordinator_agent.run_full_analysis()`,
+      receives structured dictionary, and generates 6 Plotly figures.
+    - OUTPUT: 22 distinct Gradio UI components (KPI cards, charts, dataframes, textboxes).
+  - `handle_chat(message, history)`:
+    - INPUT: Free-form question typed by user.
+    - PROCESSING: Calls `coordinator_agent.route_and_respond_chat()`.
+    - OUTPUT: Appends question and answer to chatbot message history.
+
+--------------------------------------------------------------------------------
+2. `agents/coordinator_agent.py` (Master Orchestrator)
+--------------------------------------------------------------------------------
+- Class: `CoordinatorAgent`
+- Key Functions:
+  - `run_full_analysis(energy_df, appliances_df, tariff)`:
+    - INPUT: Clean energy DataFrame, appliances DataFrame, TariffConfig.
+    - PROCESSING:
+      1. Calls `monitoring_agent.process(energy_df)`
+      2. Calls `forecasting_agent.process(energy_df, horizon_hours=24)`
+      3. Calls `appliance_agent.process(appliances_df, tariff)`
+      4. Calls `cost_agent.process(energy_df, appliances_df, tariff)`
+      5. Calls `anomaly_agent.process(energy_df)`
+      6. Formulates synthesis prompt with findings from all 5 agents and calls `llm_service`.
+    - OUTPUT: Unified system state dictionary containing all agent results.
+  - `route_and_respond_chat(user_message, ...)`:
+    - INPUT: User's question string.
+    - PROCESSING: Inspects keywords (e.g. "bill" -> queries Cost Agent, "anomaly" -> queries
+      Anomaly Agent, "washing machine" -> queries Appliance Agent), gathers relevant context,
+      and queries LLM for grounded answer.
+    - OUTPUT: Grounded response string with activated agents noted.
+
+--------------------------------------------------------------------------------
+3. `agents/monitoring_agent.py` (Historical Energy Auditor)
+--------------------------------------------------------------------------------
+- Class: `MonitoringAgent`
+- Key Method: `process(df)`
+  - INPUT: Hourly energy DataFrame.
+  - PROCESSING: Calls `compute_energy_metrics(df)` from `services/energy_calculator.py`.
+    Injects metrics into `MONITORING_SUMMARY_PROMPT`. Calls LLM for summary.
+  - OUTPUT: Dictionary containing: `total_consumption`, `daily_average`, `peak_period`,
+    `trend`, `key_findings`, and `ai_summary`.
+
+--------------------------------------------------------------------------------
+4. `agents/forecasting_agent.py` (Predictive ML Agent)
+--------------------------------------------------------------------------------
+- Class: `ForecastingAgent`
+- Key Method: `process(df, horizon_hours=24)`
+  - INPUT: Time-series historical records.
+  - PROCESSING: Calls `train_and_forecast_energy()` in `services/forecasting.py`.
+    Extracts holdout test metrics (MAE, RMSE, MAPE). Assembles future 24h predictions.
+    Calls LLM with `FORECAST_INTERPRETATION_PROMPT`.
+  - OUTPUT: Dictionary containing model name, MAE, RMSE, MAPE, 24 hourly predictions,
+    and operational advice.
+
+--------------------------------------------------------------------------------
+5. `agents/appliance_agent.py` (Device-Level Scheduler)
+--------------------------------------------------------------------------------
+- Class: `ApplianceAgent`
+- Key Method: `process(appliances_df, tariff)`
+  - INPUT: Appliances inventory and active tariff rates.
+  - PROCESSING: Calls `optimize_appliance_schedule()` in `services/optimization.py`.
+    Identifies top consumers, shifts flexible devices to off-peak hours, and computes
+    device-level savings. Calls LLM with `APPLIANCE_ADVICE_PROMPT`.
+  - OUTPUT: Top consumers list, monthly kWh saved, savings percentage, and appliance table.
+
+--------------------------------------------------------------------------------
+6. `agents/cost_agent.py` (Tariff & Financial Modeling)
+--------------------------------------------------------------------------------
+- Class: `CostAgent`
+- Key Method: `process(energy_df, appliances_df, tariff)`
+  - INPUT: Consumption data and tariff parameters.
+  - PROCESSING: Calls `calculate_energy_costs()` in `services/optimization.py`.
+    Calculates Time-of-Day charges, compares current unmanaged plan vs optimized plan,
+    and quantifies net savings in Rupees (₹).
+  - OUTPUT: Current cost, optimized cost, savings amount, and percentage reduction.
+
+--------------------------------------------------------------------------------
+7. `agents/anomaly_safety_agent.py` (Anomaly & Safety Auditor)
+--------------------------------------------------------------------------------
+- Class: `AnomalySafetyAgent`
+- Key Method: `process(df)`
+  - INPUT: Consumption time-series.
+  - PROCESSING: Calls `detect_energy_anomalies()` in `services/anomaly_detection.py`.
+    Runs Z-score and Isolation Forest. Adds electrical safety disclaimer. Calls LLM.
+  - OUTPUT: List of anomalies with timestamps, severity, and non-invasive checks.
+
+--------------------------------------------------------------------------------
+8. `services/forecasting.py` (Machine Learning Engine)
+--------------------------------------------------------------------------------
+- Key Functions:
+  - `create_forecasting_features(df)`:
+    - INPUT: DataFrame with `timestamp` and `energy_kwh`.
+    - PROCESSING: Creates `lag_1`, `lag_2`, `lag_24`, `roll_mean_6`, `roll_mean_24`,
+      `hour`, and `is_weekend`.
+    - OUTPUT: Enriched DataFrame with feature column names list.
+  - `train_and_forecast_energy(df, forecast_horizon_hours=24)`:
+    - INPUT: Enriched feature DataFrame.
+    - PROCESSING:
+      1. Performs chronological train/test split (80% train, 20% test).
+      2. Fits `RandomForestRegressor(n_estimators=75, max_depth=10, random_state=42)`.
+      3. Predicts on holdout set and calculates MAE, RMSE, and MAPE.
+      4. Iteratively projects 24 future hours using a rolling buffer.
+    - OUTPUT: Accuracy metrics and future 24h predictions dictionary.
+
+--------------------------------------------------------------------------------
+9. `services/anomaly_detection.py` (Statistical & Outlier Engine)
+--------------------------------------------------------------------------------
+- Key Function: `detect_energy_anomalies(df, contamination=0.03, z_threshold=2.8)`:
+  - INPUT: Historical energy DataFrame.
+  - PROCESSING:
+    1. Computes mean and standard deviation for each of the 24 hours of the day (`hour_mean`, `hour_std`).
+    2. Calculates hour-specific Z-score: `(energy_kwh - hour_mean) / hour_std`.
+    3. Fits `IsolationForest(contamination=0.03)` on multivariate features.
+    4. Flags record if `|z_score| >= 2.8` OR `IsolationForest outlier == -1`.
+    5. Categorizes severity: Critical (z >= 3.5), High (z >= 2.5), Medium, Low.
+  - OUTPUT: Anomaly records dictionary with explanations.
+
+--------------------------------------------------------------------------------
+10. `services/llm_service.py` (Resilient Cloud API & Offline Fallback)
+--------------------------------------------------------------------------------
+- Class: `LLMService`
+- Key Methods:
+  - `_initialize_client()`: Reads provider and keys from `config`. Initializes Groq
+    or OpenAI client. Sets to `None` if missing.
+  - `generate_completion(prompt, system_prompt, fallback_text)`:
+    - If client exists: Tries cloud completion with timeout (15s) and retries.
+    - If client is `None` or network fails: Returns `_build_fallback(fallback_text)`.
+    - Never crashes; logs sanitized messages.
+  - OUTPUT: Clean, formatted text response.
+
+--------------------------------------------------------------------------------
+11. `utils/validation.py` (CSV Sanitization & Defense)
+--------------------------------------------------------------------------------
+- Key Function: `clean_and_validate_energy_dataframe(df)`:
+  - INPUT: Raw uploaded DataFrame.
+  - PROCESSING: Verifies required columns, parses timestamps, removes duplicate
+    timestamps, sorts chronologically, clips negative energy to 0.0, imputes missing
+    values with linear interpolation.
+  - OUTPUT: Trusted DataFrame and metadata dictionary.
+================================================================================

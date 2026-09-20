@@ -1,0 +1,112 @@
+================================================================================
+               SMARTENERGY AI — ARCHITECTURE EXPLAINED IN DETAIL
+================================================================================
+Target Audience: Students & Developers wanting a deep understanding of the system flow.
+
+--------------------------------------------------------------------------------
+1. HIGH-LEVEL ARCHITECTURAL TOPOLOGY
+--------------------------------------------------------------------------------
+
+  +-----------------------------------------------------------------------+
+  |                          PRESENTATION LAYER                           |
+  |             Gradio Web Interface (10 Interactive Tabs)               |
+  +-----------------------------------+-----------------------------------+
+                                      | User Actions / Questions
+                                      v
+  +-----------------------------------------------------------------------+
+  |                       AGENT ORCHESTRATION LAYER                       |
+  |                Agent 6: Coordinator / Advisor Agent                   |
+  +-----------------------------------+-----------------------------------+
+                                      |
+         +----------------------------+----------------------------+
+         |              |             |              |             |
+         v              v             v              v             v
+    +---------+    +---------+   +---------+    +---------+   +---------+
+    | Agent 1 |    | Agent 2 |   | Agent 3 |    | Agent 4 |   | Agent 5 |
+    | Monitor |    | Forecast|   |Appliance|    |  Cost   |   | Anomaly |
+    +----+----+    +----+----+   +----+----+    +----+----+   +----+----+
+         |              |             |              |             |
+  +------v--------------v-------------v--------------v-------------v------+
+  |                     ANALYTICAL & SERVICES LAYER                       |
+  | - Energy Calculator Engine    - ML Random Forest Regressor            |
+  | - Tariff Calculation Service  - Isolation Forest & Z-Score Engine     |
+  | - Appliance Load Disaggregator- Resilient LLM Wrapper Service         |
+  +-----------------------------------+-----------------------------------+
+                                      |
+         +----------------------------+----------------------------+
+         |                                                         |
+         v                                                         v
+  +--------------------+                                 +--------------------+
+  |    DATA LAYER      |                                 |  EXTERNAL API      |
+  | - Smart Meter CSV  |                                 | - Groq / LLaMA 3.3 |
+  | - Appliances CSV   |                                 | - OpenAI GPT-4o    |
+  | - Tariff Config    |                                 | - Offline Fallback |
+  +--------------------+                                 +--------------------+
+
+--------------------------------------------------------------------------------
+2. DETAILED TRACE OF EVERY ARROW IN THE SYSTEM
+--------------------------------------------------------------------------------
+
+ARROW 1: User -> Gradio Interface
+- Input: User uploads a CSV file, selects a tariff rate, clicks "Run Analysis",
+  or types a question into the AI Assistant chat box.
+- Function: Gradio captures the DOM events, sanitizes the parameters, and routes
+  the function call to the Python backend in `app.py`.
+
+ARROW 2: Gradio -> Coordinator Agent (`agents/coordinator_agent.py`)
+- Input: In-memory cleaned Pandas DataFrame, appliances inventory, and active
+  `TariffConfig` object.
+- Function: The Coordinator Agent inspects the user intent. For a complete audit,
+  it triggers the multi-agent execution pipeline. For chat queries, it runs an
+  intent router to determine which specific sub-agents should be consulted.
+
+ARROW 3: Coordinator -> The 5 Specialized Agents
+- To Agent 1 (Monitoring Agent): Sends the historical hourly DataFrame.
+- To Agent 2 (Forecasting Agent): Sends the historical sequence for feature
+  engineering (lags and rolling means) and sets the forecast horizon (24 hours).
+- To Agent 3 (Appliance Agent): Sends the appliances catalog and tariff schedules.
+- To Agent 4 (Cost Agent): Sends the consumption metrics and tariff parameters.
+- To Agent 5 (Anomaly Agent): Sends the complete time-series for diurnal baseline
+  modeling and anomaly scoring.
+
+ARROW 4: Specialized Agents -> Deterministic Services Layer
+- Notice this critical architectural design: The agents do NOT make up numbers!
+- Agent 1 calls `services/energy_calculator.py` -> gets exact totals, averages, peaks.
+- Agent 2 calls `services/forecasting.py` -> scikit-learn fits Random Forest model,
+  evaluates MAE/RMSE/MAPE on holdout data, and generates future 24h predictions.
+- Agent 3 & 4 call `services/optimization.py` -> computes exact rupee expenditures,
+  off-peak savings, and device load shifting.
+- Agent 5 calls `services/anomaly_detection.py` -> computes hour-specific Z-scores
+  and fits `IsolationForest`.
+
+ARROW 5: Agents -> External LLM Service (`services/llm_service.py`)
+- Input: Clean JSON payloads containing the exact calculated numbers, plus role-specific
+  system prompts.
+- Function: The LLM Service attempts to call Groq / OpenAI via secure REST API with
+  a 15-second timeout and exponential backoff retry.
+- If Key Missing / Cloud Unavailable: The LLM Service triggers its deterministic
+  offline synthesis logic, returning structured analytical findings without crashing.
+- Output: Polished, professional natural language explanations and guidance.
+
+ARROW 6: Specialized Agents -> Coordinator Agent
+- Each agent returns a validated, structured Python dictionary containing:
+  - Agent Name and Role
+  - Numerical metrics and datasets
+  - Natural language AI interpretations
+  - Status indicators
+
+ARROW 7: Coordinator Agent -> Gradio Interface
+- The Coordinator Agent executes a final strategic synthesis prompt, resolving any
+  conflicting suggestions, and returns a unified state object.
+- `app.py` renders this state into 7 KPI cards, 6 Plotly charts, 2 data tables,
+  and populated markdown tabs.
+
+--------------------------------------------------------------------------------
+3. CLEAR SEPARATION OF ARCHITECTURAL LAYERS
+--------------------------------------------------------------------------------
+1. Presentation Layer: Gradio UI components only. Contains no business logic.
+2. Agent Layer: Encapsulates persona, decision-making, and prompts.
+3. Services Layer: Contains pure, testable Python mathematical and ML algorithms.
+4. Data Layer: CSV storage and Pandas data structures.
+5. Cloud/API Layer: Isolated in `llm_service.py`, shielded by `.env` and timeout filters.
+================================================================================

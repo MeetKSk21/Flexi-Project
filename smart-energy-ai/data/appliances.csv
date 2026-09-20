@@ -1,0 +1,11 @@
+appliance_name,rated_power_kw,typical_hours_per_day,flexible,priority,preferred_hours,category
+Air Conditioner (1.5 Ton),1.60,7.0,True,High,14-16;22-04,Cooling
+Refrigerator (Double Door),0.22,24.0,False,Critical,00-24,Refrigeration
+Washing Machine,1.20,1.5,True,Medium,10-12;14-16,Laundry
+Electric Geyser (Water Heater),2.00,1.2,True,High,06-08;19-20,Heating
+Ceiling Fans & Ventilation,0.20,12.0,False,High,08-24,Ventilation
+LED Lights (Living & Rooms),0.08,6.0,False,Medium,18-24,Lighting
+Television & Home Theater,0.14,4.0,False,Low,19-23,Entertainment
+Home Workstation / Laptop,0.09,8.0,True,Medium,09-17,Electronics
+Microwave & Kitchen Utensils,1.10,0.5,False,Medium,08-09;19-21,Cooking
+EV / Backup Battery Charging,2.50,3.0,True,High,23-05,Mobility

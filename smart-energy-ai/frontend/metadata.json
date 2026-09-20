@@ -1,0 +1,6 @@
+{
+  "name": "VoltIQ Pulse - Energy Visibility & Intelligence",
+  "description": "Autonomous residential energy intelligence platform with real-time digital microgrid telemetry, dynamic tariff arbitrage, sub-circuit load decomposition, and battery storage optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

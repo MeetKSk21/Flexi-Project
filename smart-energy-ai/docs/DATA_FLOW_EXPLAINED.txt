@@ -1,0 +1,125 @@
+================================================================================
+                    SMARTENERGY AI — DATA FLOW EXPLAINED
+================================================================================
+Target Audience: Step-by-step trace of how data travels through the system.
+
+Follow this complete lifecycle trace of what happens when a user uploads a CSV file
+and clicks "Run Multi-Agent Analysis".
+
+--------------------------------------------------------------------------------
+STEP 1: USER UPLOADS CSV FILE
+--------------------------------------------------------------------------------
+- User Action: Drags and drops `energy_consumption.csv` into the Gradio Data Tab.
+- Gradio Activity: Saves the temporary file to a local staging path and passes
+  the file object to `handle_csv_upload()`.
+
+--------------------------------------------------------------------------------
+STEP 2: VALIDATION & SANITIZATION PIPELINE (`utils/validation.py`)
+--------------------------------------------------------------------------------
+- File Size Check: Verifies file size <= 15 MB.
+- Extension Check: Confirms extension is strictly `.csv`.
+- Schema Verification: Inspects column headers to ensure required fields (`timestamp`
+  and `energy_kwh`) exist.
+- Type Parsing: Converts date strings into native `pd.Timestamp` objects.
+- Bound Invariant: Scans for negative numbers. Any negative readings (e.g. -1.5 kWh)
+  are clipped to 0.0 kWh and logged.
+- Chronological Sort & Deduplication: Sorts records by timestamp and strips duplicate
+  readings.
+- Feature Augmentation: Automatically derives `hour` (0-23), `day_of_week` (Monday-Sunday),
+  and `is_weekend` (0 or 1).
+- Result: Clean, trusted DataFrame stored in `GLOBAL_DATA["energy_df"]`.
+
+--------------------------------------------------------------------------------
+STEP 3: USER CLICKS "RUN MULTI-AGENT ANALYSIS"
+--------------------------------------------------------------------------------
+- Gradio invokes `run_analysis_pipeline()`.
+- Active tariff parameters (Base: ₹7.50, Peak: ₹11.00, Off-Peak: ₹5.20, Fixed: ₹150)
+  are packaged into a `TariffConfig` object.
+- Control passes to `coordinator_agent.run_full_analysis()`.
+
+--------------------------------------------------------------------------------
+STEP 4: AGENT 1 EXECUTION (MONITORING AGENT)
+--------------------------------------------------------------------------------
+- Receives: 1,080 hourly energy readings.
+- Action: Calls `services/energy_calculator.py`.
+- Calculations:
+  - Total Consumption = 1,184.25 kWh
+  - Daily Average = 26.32 kWh/day
+  - Peak Reading = 4.12 kWh (at 19:00 on Day 25)
+  - Weekday vs Weekend = Weekend usage is 14.2% higher.
+- LLM Call: Sends summary JSON to `services/llm_service.py` to draft executive insights.
+- Returns: Structured monitoring dictionary.
+
+--------------------------------------------------------------------------------
+STEP 5: AGENT 2 EXECUTION (FORECASTING AGENT)
+--------------------------------------------------------------------------------
+- Receives: Chronological energy sequence.
+- Action: Calls `services/forecasting.py`.
+- Feature Engineering: Builds lags (`lag_1`, `lag_2`, `lag_24`) and rolling averages.
+- ML Training: Fits `RandomForestRegressor` on 80% train split.
+- Evaluation: Measures holdout performance:
+  - MAE = 0.18 kWh
+  - RMSE = 0.24 kWh
+  - MAPE = 11.4%
+- Projection: Iteratively forecasts the next 24 hours into the future.
+- Predicts upcoming peak at 19:00 with 2.85 kWh.
+- Returns: Structured forecast dictionary with accuracy metrics and 24h predictions.
+
+--------------------------------------------------------------------------------
+STEP 6: AGENT 3 EXECUTION (APPLIANCE OPTIMIZATION AGENT)
+--------------------------------------------------------------------------------
+- Receives: Appliances inventory (`data/appliances.csv`) and tariff tiers.
+- Action: Calls `services/optimization.py`.
+- Classifies:
+  - Inflexible: Refrigerator, LED lights, Television.
+  - Flexible / Deferrable: Washing Machine, Geyser, EV Charger.
+- Computes:
+  - AC (1.5 Ton) is the largest consumer (~336 kWh/month).
+  - Shifting flexible loads to 11 PM - 6 AM saves 48.5 kWh of peak load.
+- Returns: Appliance table and efficiency recommendations.
+
+--------------------------------------------------------------------------------
+STEP 7: AGENT 4 EXECUTION (COST OPTIMIZATION AGENT)
+--------------------------------------------------------------------------------
+- Receives: Consumption records and tariff parameters.
+- Action: Calculates Time-of-Day billing:
+  - Current Unmanaged Monthly Bill: ₹8,420.50
+  - Optimized Load-Shifted Monthly Bill: ₹6,890.10
+  - Net Monthly Savings: ₹1,530.40 (18.2% reduction!)
+- Returns: Financial metrics and comparison table.
+
+--------------------------------------------------------------------------------
+STEP 8: AGENT 5 EXECUTION (ANOMALY & SAFETY AGENT)
+--------------------------------------------------------------------------------
+- Receives: Consumption time-series.
+- Action: Calls `services/anomaly_detection.py`.
+- Computes hour-specific Z-scores and executes Isolation Forest.
+- Discovers:
+  - Flagged 8 anomalous events (e.g. 3:00 AM spike of 3.8 kWh).
+  - Categorizes severity: 2 Critical, 3 High, 3 Medium.
+  - Adds safety disclaimer: "Verify physical appliance status; do not touch wiring."
+- Returns: Anomaly records log.
+
+--------------------------------------------------------------------------------
+STEP 9: AGENT 6 EXECUTION (COORDINATOR AGENT)
+--------------------------------------------------------------------------------
+- Gathers findings from Agents 1, 2, 3, 4, and 5.
+- Constructs multi-agent synthesis prompt.
+- Invokes LLM (or fallback) to synthesize the unified strategic recommendation.
+- Formulates complete system state dictionary.
+
+--------------------------------------------------------------------------------
+STEP 10: RENDERING TO GRADIO DASHBOARD
+--------------------------------------------------------------------------------
+- Gradio unpacks the system state dictionary:
+  - Tab 1 displays 7 KPI cards and 2 Plotly graphs.
+  - Tab 3 updates temporal load curves.
+  - Tab 4 visualizes the 6-agent status badges.
+  - Tab 5 displays the ML forecast curve with MAE/RMSE.
+  - Tab 6 populates the anomaly chart and table.
+  - Tab 7 updates appliance breakdown.
+  - Tab 8 displays the Cost Before vs After bar chart.
+  - Tab 9 enables conversational AI chat.
+  - Tab 10 enables one-click download of the complete audit report.
+- The user sees a fully updated, modern interactive dashboard!
+================================================================================
